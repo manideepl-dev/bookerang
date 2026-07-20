@@ -1,5 +1,6 @@
 package dev.manideeplanka.bookerang.controllers;
 
+import dev.manideeplanka.bookerang.models.IdRes;
 import dev.manideeplanka.bookerang.models.LoginReq;
 import dev.manideeplanka.bookerang.models.SignupReq;
 import dev.manideeplanka.bookerang.services.UserService;
@@ -19,6 +20,10 @@ public class UserController {
         LoginReq req = ctx.bodyAsClass(LoginReq.class);
         String token = userService.login(req);
         ctx.json(new TokenRes(token)).status(HttpStatus.OK);
+    }
+
+    public void profile(Context ctx) {
+        ctx.json(new IdRes("casD","dqd")).status(HttpStatus.OK);
     }
 
 

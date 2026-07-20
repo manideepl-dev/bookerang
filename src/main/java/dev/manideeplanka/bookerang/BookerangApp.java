@@ -27,6 +27,10 @@ public class BookerangApp {
         BookController bookController = new BookController(bookService);
 
         Javalin.create(config -> {
+            config.bundledPlugins.enableCors(cors -> {
+                cors.addRule(corsRule -> corsRule.allowHost("http://localhost:5173"));
+            });
+
             config.routes.exception(UserNotFoundException.class, (e, ctx) -> {
                 ctx.status(HttpStatus.NOT_FOUND).json(new ErrorRes("Wrong credentials, recheck"));
             });
@@ -39,13 +43,15 @@ public class BookerangApp {
                 ctx.status(HttpStatus.CONFLICT).json(new ErrorRes("User already exists, recheck"));
             });
 
-            config.routes.post("/login", userController::login);
-            config.routes.post("/signup", userController::signup);
+            config.routes.post("/user/login", userController::login);
+            config.routes.get("/user/me", userController::profile);
+            config.routes.post("user/signup", userController::signup);
 
             config.routes.before("/books/*", JwtMiddleware::validate);
             config.routes.post("/books/add", bookController::addBook);
+
+
+
         }).start(8080);
-
-
     }
 }

@@ -1,8 +1,7 @@
 package dev.manideeplanka.bookerang.services;
 
 import dev.manideeplanka.bookerang.models.AddBookReq;
-import dev.manideeplanka.bookerang.models.Author;
-import dev.manideeplanka.bookerang.models.Book;
+import dev.manideeplanka.bookerang.models.AddBookResult;
 import dev.manideeplanka.bookerang.repositories.BookRepository;
 
 public class BookService {
@@ -15,8 +14,7 @@ public class BookService {
         this.bookRepository = bookRepository;
     }
 
-    public String addBook(AddBookReq req, String username) {
-
+    public AddBookResult addBook(AddBookReq req, String username) {
         return bookRepository.addBook(req.author(), req.title(), username);
     }
 }
