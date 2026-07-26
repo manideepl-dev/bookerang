@@ -1,5 +1,6 @@
 package dev.manideeplanka.bookerang;
 
+import com.auth0.jwt.exceptions.JWTVerificationException;
 import dev.manideeplanka.bookerang.common.JwtMiddleware;
 import dev.manideeplanka.bookerang.controllers.BookController;
 import dev.manideeplanka.bookerang.controllers.UserController;
@@ -43,15 +44,18 @@ public class BookerangApp {
                 ctx.status(HttpStatus.CONFLICT).json(new ErrorRes("User already exists, recheck"));
             });
 
+            config.routes.exception(JWTVerificationException.class, (e, ctx) -> {
+                ctx.status(HttpStatus.UNAUTHORIZED).json(new ErrorRes("Invalid token"));
+            });
+
             config.routes.post("/user/login", userController::login);
             config.routes.get("/user/me", userController::profile);
             config.routes.post("user/signup", userController::signup);
 
             config.routes.before("/books/*", JwtMiddleware::validate);
+            config.routes.before("/books", JwtMiddleware::validate);
             config.routes.post("/books/add", bookController::addBook);
-
-
-
+            config.routes.get("/books", bookController::myBooks);
         }).start(8080);
     }
 }

@@ -1,12 +1,13 @@
 package dev.manideeplanka.bookerang.controllers;
 
-import dev.manideeplanka.bookerang.models.AddBookReq;
-import dev.manideeplanka.bookerang.models.AddBookResult;
-import dev.manideeplanka.bookerang.models.IdRes;
+import dev.manideeplanka.bookerang.models.*;
 import dev.manideeplanka.bookerang.services.BookService;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
+import java.util.List;
 
+@Slf4j
 public class BookController {
 
     BookService bookService;
@@ -24,5 +25,11 @@ public class BookController {
                 : "You already listed this book";
         ctx.json(new IdRes(message, result.copyId()))
                 .status(result.added() ? HttpStatus.CREATED : HttpStatus.CONFLICT);
+    }
+
+    public void myBooks(Context ctx) {
+        String username = ctx.attribute("username");
+        List<CopyDto> copies = bookService.myBooks(username);
+        ctx.json(new MyBooksRes(copies)).status(HttpStatus.OK);
     }
 }
