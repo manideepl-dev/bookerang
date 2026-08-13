@@ -55,6 +55,7 @@ public class BookerangApp {
             config.routes.before("/books/*", JwtMiddleware::validate);
             config.routes.before("/books", JwtMiddleware::validate);
             config.routes.post("/books/add", bookController::addBook);
+            config.routes.get("/books/nearby", bookController::nearbyBooks);
             config.routes.get("/books", bookController::myBooks);
         }).start(8080);
     }

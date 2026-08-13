@@ -11,6 +11,8 @@ public class User {
     private String firstName;
     @ColumnName("last_name")
     private String lastName;
+    private Double latitude;
+    private Double longitude;
 
     public String getFirstName() {
         return firstName;
@@ -28,6 +30,14 @@ public class User {
         return username;
     }
 
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
     public void setFirstName(String firstName) {
         this.firstName = firstName;
     }
@@ -42,5 +52,13 @@ public class User {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
     }
 }

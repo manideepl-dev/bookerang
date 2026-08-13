@@ -3,6 +3,7 @@ package dev.manideeplanka.bookerang.services;
 import dev.manideeplanka.bookerang.models.AddBookReq;
 import dev.manideeplanka.bookerang.models.AddBookResult;
 import dev.manideeplanka.bookerang.models.CopyDto;
+import dev.manideeplanka.bookerang.models.NearbyBookDto;
 import dev.manideeplanka.bookerang.repositories.BookRepository;
 import lombok.extern.slf4j.Slf4j;
 import java.util.List;
@@ -24,5 +25,9 @@ public class BookService {
 
     public List<CopyDto> myBooks(String username) {
         return bookRepository.myBooks(username);
+    }
+
+    public List<NearbyBookDto> nearbyBooks(String username, long radius) {
+        return bookRepository.nearbyBooks(username, radius);
     }
 }

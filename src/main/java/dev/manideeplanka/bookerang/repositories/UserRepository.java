@@ -24,11 +24,22 @@ public class UserRepository {
 
     public void signup(User user) throws Exception {
         jdbi.withHandle(handle -> {
-                    handle.createUpdate("INSERT INTO users (first_name, last_name, username, password) VALUES (:firstName, :lastName, :username, :password)")
+                    handle.createUpdate("""
+                                    INSERT INTO users (first_name, last_name, username, password, location)
+                                    VALUES (
+                                        :firstName,
+                                        :lastName,
+                                        :username,
+                                        :password,
+                                        ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
+                                    )
+                                    """)
                             .bind("username", user.getUsername())
                             .bind("password", user.getPassword())
                             .bind("firstName", user.getFirstName())
                             .bind("lastName", user.getLastName())
+                            .bind("latitude", user.getLatitude())
+                            .bind("longitude", user.getLongitude())
                             .execute();
                     return null; //only returning this to avoid the warning in IDE, no practical use
                 }

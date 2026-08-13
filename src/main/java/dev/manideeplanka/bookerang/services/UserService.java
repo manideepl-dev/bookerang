@@ -47,6 +47,8 @@ public class UserService {
         user.setFirstName(req.firstName());
         user.setLastName(req.lastName());
         user.setUsername(req.username());
+        user.setLatitude(req.latitude());
+        user.setLongitude(req.longitude());
         user.setPassword(BCrypt.hashpw(req.password(), BCrypt.gensalt()));
         userRepository.signup(user);
 

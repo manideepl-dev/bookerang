@@ -32,4 +32,11 @@ public class BookController {
         List<CopyDto> copies = bookService.myBooks(username);
         ctx.json(new MyBooksRes(copies)).status(HttpStatus.OK);
     }
+
+    public void nearbyBooks(Context ctx) {
+        String username = ctx.attribute("username");
+        long radius = ctx.queryParamAsClass("radius", Long.class).get();
+        List<NearbyBookDto> copies = bookService.nearbyBooks(username, radius);
+        ctx.json(new NearbyBooksRes(copies)).status(HttpStatus.OK);
+    }
 }
