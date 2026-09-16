@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 ALTER TABLE users
-    ADD COLUMN location GEOGRAPHY(POINT, 4326);
+    ADD COLUMN IF NOT EXISTS location GEOGRAPHY(POINT, 4326);
 
-CREATE INDEX users_location_idx ON users USING GIST (location);
+CREATE INDEX IF NOT EXISTS users_location_idx ON users USING GIST (location);
