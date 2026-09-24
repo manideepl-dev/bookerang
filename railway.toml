@@ -1,2 +1,2 @@
 [deploy]
-startCommand = "java -jar -Dserver.port=$PORT build/libs/bookerang-api-1.0-SNAPSHOT-all.jar"
+startCommand = "./bookerang"
