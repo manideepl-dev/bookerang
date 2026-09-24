@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	jwtutil "bookerang/internal/jwt"
-	"bookerang/internal/models"
 	"bookerang/internal/services"
 )
 
@@ -41,13 +40,16 @@ func (h *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.LoginRequest
+	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
 
-	token, err := h.service.Login(context.Background(), req)
+	token, err := h.service.Login(r.Context(), services.LoginInput{
+		Username: req.Username,
+		Password: req.Password,
+	})
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			writeJSON(w, http.StatusRequestTimeout, map[string]string{"error": "request timed out"})
@@ -55,16 +57,16 @@ func (h *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 		}
 		switch {
 		case strings.Contains(err.Error(), "user not found"):
-			writeJSON(w, http.StatusNotFound, models.ErrorResponse{Error: "Wrong credentials, recheck"})
+			writeJSON(w, http.StatusNotFound, errorResponse{Error: "Wrong credentials, recheck"})
 		case strings.Contains(err.Error(), "invalid credentials"):
-			writeJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Wrong credentials, recheck"})
+			writeJSON(w, http.StatusBadRequest, errorResponse{Error: "Wrong credentials, recheck"})
 		default:
-			writeJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: err.Error()})
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
 		}
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.TokenResponse{Token: token})
+	writeJSON(w, http.StatusOK, tokenResponse{Token: token})
 }
 
 func (h *UserHandler) signup(w http.ResponseWriter, r *http.Request) {
@@ -73,24 +75,31 @@ func (h *UserHandler) signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.SignupRequest
+	var req signupRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
 
-	token, err := h.service.Signup(context.Background(), req)
+	token, err := h.service.Signup(r.Context(), services.SignupInput{
+		Username:  req.Username,
+		Password:  req.Password,
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Latitude:  req.Latitude,
+		Longitude: req.Longitude,
+	})
 	if err != nil {
 		switch {
 		case strings.Contains(err.Error(), "user already exists"):
-			writeJSON(w, http.StatusConflict, models.ErrorResponse{Error: "User already exists, recheck"})
+			writeJSON(w, http.StatusConflict, errorResponse{Error: "User already exists, recheck"})
 		default:
-			writeJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: err.Error()})
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
 		}
 		return
 	}
 
-	writeJSON(w, http.StatusOK, models.TokenResponse{Token: token})
+	writeJSON(w, http.StatusOK, tokenResponse{Token: token})
 }
 
 func (h *UserHandler) profile(w http.ResponseWriter, r *http.Request) {
@@ -98,11 +107,11 @@ func (h *UserHandler) profile(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(authHeader, "Bearer ") {
 		token := strings.TrimPrefix(authHeader, "Bearer ")
 		if _, err := jwtutil.Validate(token, h.jwtSecret); err == nil {
-			writeJSON(w, http.StatusOK, models.IdResponse{Msg: "casD", ID: "dqd"})
+			writeJSON(w, http.StatusOK, idResponse{Msg: "casD", ID: "dqd"})
 			return
 		}
 	}
-	writeJSON(w, http.StatusOK, models.IdResponse{Msg: "casD", ID: "dqd"})
+	writeJSON(w, http.StatusOK, idResponse{Msg: "casD", ID: "dqd"})
 }
 
 func (h *BookHandler) addBook(w http.ResponseWriter, r *http.Request) {
@@ -110,15 +119,18 @@ func (h *BookHandler) addBook(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 		return
 	}
-	var req models.AddBookRequest
+	var req addBookRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
 	username := usernameFromContext(r.Context())
-	result, err := h.service.AddBook(r.Context(), req, username)
+	result, err := h.service.AddBook(r.Context(), services.AddBookInput{
+		Title:  req.Title,
+		Author: req.Author,
+	}, username)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: err.Error()})
+		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
 		return
 	}
 	message := "Book added to your collection"
@@ -127,17 +139,17 @@ func (h *BookHandler) addBook(w http.ResponseWriter, r *http.Request) {
 		message = "You already listed this book"
 		status = http.StatusConflict
 	}
-	writeJSON(w, status, models.IdResponse{Msg: message, ID: result.CopyID})
+	writeJSON(w, status, idResponse{Msg: message, ID: result.CopyID})
 }
 
 func (h *BookHandler) myBooks(w http.ResponseWriter, r *http.Request) {
 	username := usernameFromContext(r.Context())
 	books, err := h.service.MyBooks(r.Context(), username)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: err.Error()})
+		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, models.MyBooksResponse{Books: books})
+	writeJSON(w, http.StatusOK, myBooksResponse{Books: toCopyResponses(books)})
 }
 
 func (h *BookHandler) nearbyBooks(w http.ResponseWriter, r *http.Request) {
@@ -154,10 +166,10 @@ func (h *BookHandler) nearbyBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	books, err := h.service.NearbyBooks(r.Context(), username, radius)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: err.Error()})
+		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, models.NearbyBooksResponse{Books: books})
+	writeJSON(w, http.StatusOK, nearbyBooksResponse{Books: toNearbyBookResponses(books)})
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload interface{}) {

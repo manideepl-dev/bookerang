@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"bookerang/internal/models"
+	"bookerang/internal/domain"
 )
 
 type UserRepository struct {
@@ -16,24 +16,24 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{DB: db}
 }
 
-func (r *UserRepository) FindByUsername(ctx context.Context, username string) (models.User, bool, error) {
+func (r *UserRepository) FindByUsername(ctx context.Context, username string) (domain.User, bool, error) {
 	row := r.DB.QueryRowContext(ctx, `
 		SELECT username, password, first_name, last_name
 		FROM users
 		WHERE username = $1
 	`, username)
 
-	var user models.User
+	var user domain.User
 	if err := row.Scan(&user.Username, &user.Password, &user.FirstName, &user.LastName); err != nil {
 		if err == sql.ErrNoRows {
-			return models.User{}, false, nil
+			return domain.User{}, false, nil
 		}
-		return models.User{}, false, fmt.Errorf("find user by username: %w", err)
+		return domain.User{}, false, fmt.Errorf("find user by username: %w", err)
 	}
 	return user, true, nil
 }
 
-func (r *UserRepository) CreateUser(ctx context.Context, user models.User) error {
+func (r *UserRepository) CreateUser(ctx context.Context, user domain.User) error {
 	_, err := r.DB.ExecContext(ctx, `
 		INSERT INTO users (first_name, last_name, username, password, location)
 		VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography)

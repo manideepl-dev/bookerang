@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"bookerang/internal/models"
+	"bookerang/internal/domain"
 )
 
 type BookRepository struct {
@@ -16,10 +16,10 @@ func NewBookRepository(db *sql.DB) *BookRepository {
 	return &BookRepository{DB: db}
 }
 
-func (r *BookRepository) AddBook(ctx context.Context, authorTitle string, title string, owner string) (models.AddBookResult, error) {
+func (r *BookRepository) AddBook(ctx context.Context, authorTitle string, title string, owner string) (domain.AddBookResult, error) {
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
-		return models.AddBookResult{}, fmt.Errorf("begin transaction: %w", err)
+		return domain.AddBookResult{}, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -30,7 +30,7 @@ func (r *BookRepository) AddBook(ctx context.Context, authorTitle string, title 
 		ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
 		RETURNING author_id
 	`, authorTitle).Scan(&authorID); err != nil {
-		return models.AddBookResult{}, fmt.Errorf("upsert author: %w", err)
+		return domain.AddBookResult{}, fmt.Errorf("upsert author: %w", err)
 	}
 
 	var bookID string
@@ -40,7 +40,7 @@ func (r *BookRepository) AddBook(ctx context.Context, authorTitle string, title 
 		ON CONFLICT (title, author_id) DO UPDATE SET title = EXCLUDED.title
 		RETURNING book_id
 	`, title, authorID).Scan(&bookID); err != nil {
-		return models.AddBookResult{}, fmt.Errorf("upsert book: %w", err)
+		return domain.AddBookResult{}, fmt.Errorf("upsert book: %w", err)
 	}
 
 	var copyID string
@@ -51,17 +51,17 @@ func (r *BookRepository) AddBook(ctx context.Context, authorTitle string, title 
 		ON CONFLICT (book_id, owner_id) DO UPDATE SET owner_id = EXCLUDED.owner_id
 		RETURNING copy_id, xmax = 0 AS added
 	`, bookID, owner).Scan(&copyID, &added); err != nil {
-		return models.AddBookResult{}, fmt.Errorf("upsert copy: %w", err)
+		return domain.AddBookResult{}, fmt.Errorf("upsert copy: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return models.AddBookResult{}, fmt.Errorf("commit transaction: %w", err)
+		return domain.AddBookResult{}, fmt.Errorf("commit transaction: %w", err)
 	}
 
-	return models.AddBookResult{CopyID: copyID, Added: added}, nil
+	return domain.AddBookResult{CopyID: copyID, Added: added}, nil
 }
 
-func (r *BookRepository) MyBooks(ctx context.Context, username string) ([]models.CopyDTO, error) {
+func (r *BookRepository) MyBooks(ctx context.Context, username string) ([]domain.Copy, error) {
 	rows, err := r.DB.QueryContext(ctx, `
 		SELECT c.copy_id, b.title, a.name
 		FROM copies c
@@ -74,9 +74,9 @@ func (r *BookRepository) MyBooks(ctx context.Context, username string) ([]models
 	}
 	defer rows.Close()
 
-	books := make([]models.CopyDTO, 0)
+	books := make([]domain.Copy, 0)
 	for rows.Next() {
-		var item models.CopyDTO
+		var item domain.Copy
 		if err := rows.Scan(&item.CopyID, &item.Title, &item.Author); err != nil {
 			return nil, fmt.Errorf("scan my books: %w", err)
 		}
@@ -88,7 +88,7 @@ func (r *BookRepository) MyBooks(ctx context.Context, username string) ([]models
 	return books, nil
 }
 
-func (r *BookRepository) NearbyBooks(ctx context.Context, username string, radius int64) ([]models.NearbyBookDTO, error) {
+func (r *BookRepository) NearbyBooks(ctx context.Context, username string, radius int64) ([]domain.NearbyBook, error) {
 	rows, err := r.DB.QueryContext(ctx, `
 		SELECT c.copy_id,
 		       b.title,
@@ -112,9 +112,9 @@ func (r *BookRepository) NearbyBooks(ctx context.Context, username string, radiu
 	}
 	defer rows.Close()
 
-	books := make([]models.NearbyBookDTO, 0)
+	books := make([]domain.NearbyBook, 0)
 	for rows.Next() {
-		var item models.NearbyBookDTO
+		var item domain.NearbyBook
 		if err := rows.Scan(&item.CopyID, &item.Title, &item.Author, &item.OwnerUsername, &item.OwnerFirstName, &item.OwnerLastName); err != nil {
 			return nil, fmt.Errorf("scan nearby books: %w", err)
 		}
