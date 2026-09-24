@@ -10,6 +10,7 @@ import (
 type Config struct {
 	DatabaseURL string
 	JWTSecret   string
+	CORSOrigin  string
 }
 
 func Load() (Config, error) {
@@ -30,9 +31,13 @@ func Load() (Config, error) {
 	cfg := Config{
 		DatabaseURL: databaseURL,
 		JWTSecret:   os.Getenv("JWT_SECRET"),
+		CORSOrigin:  os.Getenv("CORS_ORIGIN"),
 	}
 	if cfg.JWTSecret == "" {
-		cfg.JWTSecret = "dev-secret"
+		return Config{}, fmt.Errorf("JWT_SECRET is required")
+	}
+	if cfg.CORSOrigin == "" {
+		cfg.CORSOrigin = "*"
 	}
 	return cfg, nil
 }

@@ -4,17 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
-	jwtutil "bookerang/internal/jwt"
 	"bookerang/internal/services"
 )
 
 type UserHandler struct {
-	service   *services.UserService
-	jwtSecret string
+	service *services.UserService
 }
 
 type BookHandler struct {
@@ -22,11 +20,11 @@ type BookHandler struct {
 }
 
 func RegisterRoutes(router *http.ServeMux, userSvc *services.UserService, bookSvc *services.BookService, jwtSecret string) {
-	userHandler := &UserHandler{service: userSvc, jwtSecret: jwtSecret}
+	userHandler := &UserHandler{service: userSvc}
 	bookHandler := &BookHandler{service: bookSvc}
 
 	router.HandleFunc("/user/login", userHandler.login)
-	router.HandleFunc("/user/me", userHandler.profile)
+	router.Handle("/user/me", withAuth(http.HandlerFunc(userHandler.profile), jwtSecret))
 	router.HandleFunc("/user/signup", userHandler.signup)
 
 	router.Handle("/books", withAuth(http.HandlerFunc(bookHandler.myBooks), jwtSecret))
@@ -41,7 +39,7 @@ func (h *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req loginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(w, r, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
@@ -55,13 +53,12 @@ func (h *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusRequestTimeout, map[string]string{"error": "request timed out"})
 			return
 		}
-		switch {
-		case strings.Contains(err.Error(), "user not found"):
-			writeJSON(w, http.StatusNotFound, errorResponse{Error: "Wrong credentials, recheck"})
-		case strings.Contains(err.Error(), "invalid credentials"):
-			writeJSON(w, http.StatusBadRequest, errorResponse{Error: "Wrong credentials, recheck"})
-		default:
-			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
+		if errors.Is(err, services.ErrInvalidInput) {
+			writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid login request"})
+		} else if errors.Is(err, services.ErrInvalidCredentials) {
+			writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "wrong credentials"})
+		} else {
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "internal server error"})
 		}
 		return
 	}
@@ -76,7 +73,7 @@ func (h *UserHandler) signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req signupRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(w, r, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
@@ -90,11 +87,12 @@ func (h *UserHandler) signup(w http.ResponseWriter, r *http.Request) {
 		Longitude: req.Longitude,
 	})
 	if err != nil {
-		switch {
-		case strings.Contains(err.Error(), "user already exists"):
+		if errors.Is(err, services.ErrInvalidInput) {
+			writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid signup request"})
+		} else if errors.Is(err, services.ErrUserExists) {
 			writeJSON(w, http.StatusConflict, errorResponse{Error: "User already exists, recheck"})
-		default:
-			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
+		} else {
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "internal server error"})
 		}
 		return
 	}
@@ -103,15 +101,7 @@ func (h *UserHandler) signup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) profile(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if strings.HasPrefix(authHeader, "Bearer ") {
-		token := strings.TrimPrefix(authHeader, "Bearer ")
-		if _, err := jwtutil.Validate(token, h.jwtSecret); err == nil {
-			writeJSON(w, http.StatusOK, idResponse{Msg: "casD", ID: "dqd"})
-			return
-		}
-	}
-	writeJSON(w, http.StatusOK, idResponse{Msg: "casD", ID: "dqd"})
+	writeJSON(w, http.StatusOK, profileResponse{Username: usernameFromContext(r.Context())})
 }
 
 func (h *BookHandler) addBook(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +110,7 @@ func (h *BookHandler) addBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req addBookRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(w, r, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
@@ -130,7 +120,11 @@ func (h *BookHandler) addBook(w http.ResponseWriter, r *http.Request) {
 		Author: req.Author,
 	}, username)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
+		if errors.Is(err, services.ErrInvalidInput) {
+			writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid book request"})
+		} else {
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "internal server error"})
+		}
 		return
 	}
 	message := "Book added to your collection"
@@ -146,7 +140,7 @@ func (h *BookHandler) myBooks(w http.ResponseWriter, r *http.Request) {
 	username := usernameFromContext(r.Context())
 	books, err := h.service.MyBooks(r.Context(), username)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
+		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "internal server error"})
 		return
 	}
 	writeJSON(w, http.StatusOK, myBooksResponse{Books: toCopyResponses(books)})
@@ -166,7 +160,11 @@ func (h *BookHandler) nearbyBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	books, err := h.service.NearbyBooks(r.Context(), username, radius)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
+		if errors.Is(err, services.ErrInvalidInput) {
+			writeJSON(w, http.StatusBadRequest, errorResponse{Error: "radius must be between 1 and 1000 kilometers"})
+		} else {
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "internal server error"})
+		}
 		return
 	}
 	writeJSON(w, http.StatusOK, nearbyBooksResponse{Books: toNearbyBookResponses(books)})
@@ -178,4 +176,21 @@ func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func decodeJSON(w http.ResponseWriter, r *http.Request, destination interface{}) error {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(destination); err != nil {
+		return err
+	}
+	var extra interface{}
+	if err := decoder.Decode(&extra); err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+	if extra != nil {
+		return errors.New("request body must contain one JSON object")
+	}
+	return nil
 }

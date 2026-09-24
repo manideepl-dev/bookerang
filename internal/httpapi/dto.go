@@ -34,6 +34,10 @@ type idResponse struct {
 	ID  string `json:"id"`
 }
 
+type profileResponse struct {
+	Username string `json:"username"`
+}
+
 type copyResponse struct {
 	CopyID string `json:"copyId"`
 	Title  string `json:"title"`

@@ -2,7 +2,6 @@ package jwt
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
@@ -20,9 +19,10 @@ func Generate(secret, username string) (string, error) {
 }
 
 func Validate(rawToken, secret string) (string, error) {
-	token, err := jwtlib.Parse(rawToken, func(token *jwtlib.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwtlib.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+	claims := &jwtlib.RegisteredClaims{}
+	token, err := jwtlib.ParseWithClaims(rawToken, claims, func(token *jwtlib.Token) (interface{}, error) {
+		if token.Method != jwtlib.SigningMethodHS256 {
+			return nil, errors.New("unexpected signing method")
 		}
 		return []byte(secret), nil
 	})
@@ -33,14 +33,8 @@ func Validate(rawToken, secret string) (string, error) {
 		return "", errors.New("invalid token")
 	}
 
-	claims, ok := token.Claims.(jwtlib.MapClaims)
-	if !ok {
-		return "", errors.New("invalid claims")
-	}
-
-	subject, ok := claims["sub"].(string)
-	if !ok || subject == "" {
+	if claims.Subject == "" {
 		return "", errors.New("missing subject")
 	}
-	return subject, nil
+	return claims.Subject, nil
 }

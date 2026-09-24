@@ -44,21 +44,34 @@ func (r *BookRepository) AddBook(ctx context.Context, authorTitle string, title 
 	}
 
 	var copyID string
-	var added bool
 	if err := tx.QueryRowContext(ctx, `
 		INSERT INTO copies (book_id, owner_id)
 		VALUES ($1, $2)
-		ON CONFLICT (book_id, owner_id) DO UPDATE SET owner_id = EXCLUDED.owner_id
-		RETURNING copy_id, xmax = 0 AS added
-	`, bookID, owner).Scan(&copyID, &added); err != nil {
-		return domain.AddBookResult{}, fmt.Errorf("upsert copy: %w", err)
+		ON CONFLICT (book_id, owner_id) DO NOTHING
+		RETURNING copy_id
+	`, bookID, owner).Scan(&copyID); err != nil {
+		if err != sql.ErrNoRows {
+			return domain.AddBookResult{}, fmt.Errorf("insert copy: %w", err)
+		}
+		if err := tx.QueryRowContext(ctx, `
+			SELECT copy_id
+			FROM copies
+			WHERE book_id = $1 AND owner_id = $2
+		`, bookID, owner).Scan(&copyID); err != nil {
+			return domain.AddBookResult{}, fmt.Errorf("find existing copy: %w", err)
+		}
+		returnResult := domain.AddBookResult{CopyID: copyID, Added: false}
+		if err := tx.Commit(); err != nil {
+			return domain.AddBookResult{}, fmt.Errorf("commit transaction: %w", err)
+		}
+		return returnResult, nil
 	}
 
 	if err := tx.Commit(); err != nil {
 		return domain.AddBookResult{}, fmt.Errorf("commit transaction: %w", err)
 	}
 
-	return domain.AddBookResult{CopyID: copyID, Added: added}, nil
+	return domain.AddBookResult{CopyID: copyID, Added: true}, nil
 }
 
 func (r *BookRepository) MyBooks(ctx context.Context, username string) ([]domain.Copy, error) {

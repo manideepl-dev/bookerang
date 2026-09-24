@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"bookerang/internal/domain"
+	"github.com/lib/pq"
 )
 
 type UserRepository struct {
@@ -39,6 +40,9 @@ func (r *UserRepository) CreateUser(ctx context.Context, user domain.User) error
 		VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography)
 	`, user.FirstName, user.LastName, user.Username, user.Password, user.Longitude, user.Latitude)
 	if err != nil {
+		if postgresErr, ok := err.(*pq.Error); ok && postgresErr.Code == "23505" {
+			return fmt.Errorf("%w: username already exists", ErrDuplicate)
+		}
 		return fmt.Errorf("create user: %w", err)
 	}
 	return nil
