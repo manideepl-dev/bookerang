@@ -1,0 +1,30 @@
+# Reconstructed API contract; resolvers and authorization not yet implemented.
+type Query {
+  me: User!
+  myBooks: [Book!]!
+  discover(latitude: Float!, longitude: Float!, radiusKm: Float!, search: String, first: Int = 30): [Book!]!
+  myRequests: [BorrowRequest!]!
+  messages(requestId: ID!, first: Int = 50, before: ID): [Message!]!
+}
+type Mutation {
+  register(input: RegisterInput!): Session!
+  login(email: String!, password: String!): Session!
+  addBook(input: BookInput!): Book!
+  archiveBook(bookId: ID!): Book!
+  requestBook(bookId: ID!, note: String): BorrowRequest!
+  acceptRequest(requestId: ID!): BorrowRequest!
+  declineRequest(requestId: ID!): BorrowRequest!
+  cancelRequest(requestId: ID!): BorrowRequest!
+  markReturned(requestId: ID!): BorrowRequest!
+  sendMessage(requestId: ID!, text: String!): Message!
+  blockUser(userId: ID!): Boolean!
+  reportUser(requestId: ID!, reason: String!, details: String): Boolean!
+}
+input RegisterInput { email: String!, password: String!, displayName: String!, inviteCode: String!, latitude: Float!, longitude: Float! }
+input BookInput { title: String!, author: String!, description: String, rentalPricePaise: Int! }
+type Session { token: String!, user: User! }
+type User { id: ID!, displayName: String! }
+type Book { id: ID!, title: String!, author: String!, description: String, rentalPricePaise: Int!, owner: User!, available: Boolean!, distanceKm: Float }
+enum RequestStatus { PENDING ACCEPTED DECLINED CANCELLED RETURNED }
+type BorrowRequest { id: ID!, book: Book!, borrower: User!, status: RequestStatus!, note: String, createdAt: String! }
+type Message { id: ID!, sender: User!, text: String!, createdAt: String! }
