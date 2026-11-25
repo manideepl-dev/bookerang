@@ -1,0 +1,1 @@
+export const metadata={title:'Bookerang',description:'Discover books around you.'}; export default function Layout({children}){return <html lang="en"><body style={{margin:0,background:'#f5f3ee'}}>{children}</body></html>}
