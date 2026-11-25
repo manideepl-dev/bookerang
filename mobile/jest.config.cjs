@@ -1,1 +1,4 @@
-module.exports={preset:'jest-expo',testMatch:['**/tests/**/*.test.js'],transformIgnorePatterns:['node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|react-native-safe-area-context)/)']};
+module.exports = {
+  preset: 'jest-expo',
+  testMatch: ['**/tests/**/*.test.js'],
+};
