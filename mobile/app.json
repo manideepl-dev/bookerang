@@ -1,0 +1,1 @@
+{"expo":{"name":"Bookerang","slug":"bookerang","version":"0.4.0","ios":{"bundleIdentifier":"dev.bookerang.app"},"android":{"package":"dev.bookerang.app"},"plugins":[["expo-location",{"locationWhenInUsePermission":"Allow Bookerang to find books near you when you ask."}]]}}
