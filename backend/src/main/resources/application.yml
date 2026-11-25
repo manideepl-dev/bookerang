@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: ${BOOKERANG_DB_URL:jdbc:postgresql://localhost:5432/bookerang}
+    username: ${BOOKERANG_DB_USER:bookerang}
+    password: ${BOOKERANG_DB_PASSWORD}
+  graphql:
+    graphiql:
+      enabled: false
+bookerang:
+  invite: ${BOOKERANG_PILOT_INVITE:}
+server:
+  address: ${BOOKERANG_BIND_ADDRESS:127.0.0.1}
