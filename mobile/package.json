@@ -1,0 +1,1 @@
+{"name":"mobile","private":true,"main":"expo/AppEntry.js","scripts":{"start":"expo start","ios":"expo start --ios","android":"expo start --android"},"dependencies":{"expo":"~54.0.0","expo-location":"~19.0.0","react":"19.1.0","react-native":"0.81.5","react-native-safe-area-context":"~5.6.0","@bookerang/api":"0.4.0"}}
