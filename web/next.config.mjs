@@ -1,0 +1,1 @@
+export default { transpilePackages:['@bookerang/api','react-native-web'], webpack(config){config.resolve.alias['react-native$']='react-native-web';return config;} };
